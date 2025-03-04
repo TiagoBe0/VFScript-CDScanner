@@ -13,16 +13,14 @@ VFScript genera diversas representaciones visuales y estadísticas para facilita
 
 
 
-
-![imagen](https://github.com/user-attachments/assets/0db88d75-30b1-4d14-8fa4-b29b95e6d702)
-
-
+![imagen](https://github.com/user-attachments/assets/088749a5-de96-44eb-9245-a32a0dfd2cea)
 
 
 
       
     • Mapa de Calor de Clusters de Centroides: Visualización de la concentración y densidad de los clusters de defectos en la muestra.
 
+![imagen](https://github.com/user-attachments/assets/57eae3ac-ad85-46ca-b870-d6bd01e040e8)
 
 
 
@@ -34,9 +32,13 @@ VFScript genera diversas representaciones visuales y estadísticas para facilita
 
     • Mapa de Contorno de Densidad de Clusters de Defectos: Muestra la distribución espacial de los defectos identificados.
 
+
+![imagen](https://github.com/user-attachments/assets/7a71c396-d5c7-4c04-b0f5-82bffcfc059d)
+
     • Histograma de Población Total de Átomos por Cluster de Centroides: Diferencia los clusters según los porcentajes de partículas de distintos tipos que los componen.
 
 
+![imagen](https://github.com/user-attachments/assets/08cfc354-d39a-491d-898f-18de1ce6ebd5)
 
 
 
@@ -44,6 +46,7 @@ VFScript genera diversas representaciones visuales y estadísticas para facilita
 
     • Mapa de Calor de Densidad de Población de los Clusters de Centroides: Indica la distribución de los clusters en función de su densidad de población.
 
+![imagen](https://github.com/user-attachments/assets/b34b1c5e-1252-4804-8199-958bfd3aa0c2)
 
 
 
@@ -67,29 +70,35 @@ Pasos para Utilizar VFScript en Visual Studio Code
 	Antes de ejecutar VFScript, es recomendable crear un entorno virtual para 	gestionar las  dependencias. Los pasos varían según el sistema operativo:
 	En Linux:
 
+![imagen](https://github.com/user-attachments/assets/e8e365e1-66cc-427d-8e59-fb529da3944e)
 
 
 
 	En Windows:
 	
+![imagen](https://github.com/user-attachments/assets/ea015f68-a033-4427-bff5-d22f0f110fed)
 
 
 	
 	4. Instalar las Dependencias Necesarias
 	Una vez activado el entorno virtual, instale los paquetes requeridos ejecutando 	el siguiente 	comando en la terminal:
 
+![imagen](https://github.com/user-attachments/assets/e530049a-a214-4328-a285-de564a1f1c95)
 
 	5. Configurar los Parámetros de Entrada
 	Abra el archivo input_params.py en Visual Studio Code. En este archivo, debe 	especificar:
 	La ruta del archivo de entrenamiento.
 	La lista de archivos que desea analizar para contabilizar vacancias y extraer 	información  sobre defectos.
 	Ejemplo de configuración en input_params.py:
+ ![imagen](https://github.com/user-attachments/assets/c1fec7df-05d7-4d15-96ba-526bd07eebea)
+
 
 
 
 	6. Ejecutar VFScript
-	Una vez configurado input_params.py, ejecute el algoritmo desde la terminal 	con el  siguiente comando:
+	Una vez configurado input_params.py, ejecute el algoritmo desde la terminal 	con el  siguiente comando python3 VFScript run:
 	
+![imagen](https://github.com/user-attachments/assets/0d6e440c-2c13-4e75-ad2a-aa40c2a5bf12)
 
 
 
