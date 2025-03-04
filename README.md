@@ -111,7 +111,6 @@ Pasos para Utilizar VFScript en Visual Studio Code
 
 
 
-
 Parámetros de Configuración en input_params.py
 El archivo input_params.py contiene una lista de diccionarios (CONFIG) con la configuración del procesamiento y entrenamiento. A continuación, se detallan los parámetros más importantes:
 Parámetros Generales
@@ -140,5 +139,6 @@ Generación de Datos y Predicción
     • iteraciones_clusterig (int): Define el número de iteraciones para el algoritmo de clustering.
 Columnas Predictoras
     • PREDICTOR_COLUMNS (list[str]): Lista de características utilizadas en la predicción. Pueden ser [‘surface_area ’,’ filled_volume ’,’ cluster_size ’,’ mean_distance ’  ]
+
 
 
