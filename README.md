@@ -3,9 +3,18 @@
 VFScript y Tipos de Resultados Exportados
 ¿Qué hace VFScript?
 VFScript es un software diseñado para la detección, análisis y predicción de vacancias en muestras cristalinas a partir de simulaciones atómicas. Su funcionamiento se divide en tres etapas principales:
+
+
     1. Generación de Datos y Entrenamiento: Se introducen defectos en una muestra inicial y se extraen características estructurales mediante OVITO. Estos datos se utilizan para entrenar modelos predictivos como Regresión Lineal, Random Forest, XGBoost y MLP.
+
+    
     2. Identificación de Áreas Clave: Se procesan muestras defectuosas para eliminar regiones sin defectos y se agrupan los átomos que rodean las vacancias en clusters mediante algoritmos de clustering.
+
+    
     3. Predicciones: Se emplean los modelos entrenados para estimar la presencia de vacancias y defectos en nuevas muestras, considerando métricas como área de superficie, volumen vacío y densidad atómica.
+
+
+    
 Tipos de Resultados Exportados
 VFScript genera diversas representaciones visuales y estadísticas para facilitar la interpretación de los datos analizados. Entre los principales resultados se incluyen:
     • Histograma de Frecuencia de Vacancias Detectadas: Representa la distribución de vacancias identificadas por los modelos de predicción.
