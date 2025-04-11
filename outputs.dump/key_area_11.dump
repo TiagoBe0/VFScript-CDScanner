@@ -1,0 +1,10 @@
+ITEM: TIMESTEP
+0
+ITEM: NUMBER OF ATOMS
+1
+ITEM: BOX BOUNDS pp pp pp
+0.0 35.0
+0.0 35.0
+0.0 35.0
+ITEM: ATOMS id type x y z Cluster
+713 1 10.5 14.0 17.5 11

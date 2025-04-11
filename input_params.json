@@ -1,0 +1,49 @@
+{
+    "CONFIG": [
+        {
+            "training_step": true,
+            "activate_generate_relax": true,
+            "generate_relax": [
+                "fcc",
+                "3.5"
+            ],
+            "relax": "inputs.dump/relax_structure.dump",
+            "defect": [
+                "outputs.json/training_void_1.dump",
+                "outputs.json/training_void_2.dump",
+                "outputs.json/training_void_3.dump",
+                "outputs.json/training_void_4.dump",
+                "outputs.json/training_void_5.dump",
+                "outputs.json/training_void_6.dump",
+                "outputs.json/training_void_7.dump",
+                "outputs.json/training_void_8.dump",
+                "outputs.json/training_void_9.dump"
+            ],
+            "radius": 2,
+            "smoothing level": 5,
+            "smoothing_level_training": 0,
+            "cutoff radius": 3,
+            "radius_training": 3,
+            "other method": true,
+            "save_training": true,
+            "strees": [
+                1,
+                1,
+                1
+            ],
+            "cluster tolerance": 3,
+            "divisions_of_cluster": 6,
+            "CDScanner": false,
+            "Histograma": false,
+            "generic_data": false,
+            "chat": false,
+            "iteraciones_clusterig": 4
+        }
+    ],
+    "PREDICTOR_COLUMNS": [
+        "surface_area",
+        "filled_volume",
+        "cluster_size",
+        "mean_distance"
+    ]
+}
