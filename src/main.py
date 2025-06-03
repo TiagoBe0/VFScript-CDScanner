@@ -12,6 +12,7 @@ from surface_processor.cluster_dump_processor import ClusterDumpProcessor
 from cluster_processing.cluster_processor import ClusterProcessor, ClusterProcessorMachine
 from cluster_processing.key_files_separator import KeyFilesSeparator
 from cluster_processing.export_cluster_list import ExportClusterList
+from training.cristal_structure_gen import CrystalStructureGenerator
 import os
 import json
 from training.training_processor import TrainingProcessor
@@ -21,6 +22,8 @@ from training.vacancy_predictors import (
     VacancyPredictor,
     VacancyPredictorMLP
 )
+
+from pathlib import Path
 from training.utils import load_json_data, resolve_input_params_path
 
 import json
@@ -40,9 +43,6 @@ if __name__ == "__main__":
 
 
  
-   
-   
-
 
 
 
@@ -53,11 +53,22 @@ if __name__ == "__main__":
             all_params = json.load(f)
     except FileNotFoundError:
         raise FileNotFoundError(f"No se encontró el archivo de parámetros")
-# … resto de extracción de CONFIG …
-    # 2. Separar archivos críticos y finales
-# 1. Ejecutar ClusterProcessor para generar key_areas.dump
+    
     configuracion = all_params["CONFIG"][0]
     defect_file = configuracion['defect']
+
+    cs_out_dir = Path("inputs/dump")
+    cs_generator = CrystalStructureGenerator(configuracion, cs_out_dir)
+    dump_path = cs_generator.generate()
+    print(f"Estructura relajada generada en: {dump_path}")
+
+   
+
+
+
+
+
+
     processor = ClusterProcessor(defect_file)
     processor.run()
     separator = KeyFilesSeparator(configuracion, os.path.join("outputs/json", "clusters.json"))

@@ -3,10 +3,11 @@
         {   "other method":true,
             "activate_generate_relax": true,
             "generate_relax": [
-                "bcc",
-                "3.5"
+                "fcc",
+                "3.5",
+                5,5,5
             ],
-            "relax": "inputs/dump/fe0",
+            "relax": "inputs/dump/relax_structure.dump",
             "defect": [
                 "inputs/dump/fe3"
             ],
@@ -14,7 +15,7 @@
             "smoothing_level": 0,
             "smoothing_level_training": 0,
             "cutoff": 3,
-            "radius_training": 5,
+            "radius_training": 3,
             "cluster tolerance": 2,
             "divisions_of_cluster": 6,
             "iteraciones_clusterig": 4

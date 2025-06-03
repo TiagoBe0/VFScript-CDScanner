@@ -139,7 +139,7 @@ class TrainingProcessor:
         cond = (
             f"(Position.X - {centro[0]})*(Position.X - {centro[0]}) + "
             f"(Position.Y - {centro[1]})*(Position.Y - {centro[1]}) + "
-            f"(Position.Z - {centro[2]})*(Position.Z - {centro[2]}) <= {self.radius_training ** 2}"
+            f"(Position.Z - {centro[2]})*(Position.Z - {centro[2]}) <= {self.radius_training *self.radius_training }"
         )
         pipeline.modifiers.append(ExpressionSelectionModifier(expression=cond))
         pipeline.modifiers.append(InvertSelectionModifier())
@@ -269,6 +269,7 @@ class TrainingProcessor:
                 identify_regions=True,
                 select_surface_particles=True
             ))
+
             data_2 = pipeline_2.compute()
 
             # Área y volumen
