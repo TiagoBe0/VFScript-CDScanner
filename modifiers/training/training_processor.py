@@ -11,10 +11,11 @@ from ovito.modifiers import (
     InvertSelectionModifier,
     AffineTransformationModifier
 )
-from training.utils import resolve_input_params_path  # función de utils.py
+from training.utils import resolve_input_params_path
 import math
 import pandas as pd
 
+from typing import Tuple
 
 class TrainingProcessor:
     def __init__(
@@ -26,30 +27,25 @@ class TrainingProcessor:
         save_training: bool = True,
         relax_file: str = None,
         output_dir_json: str = "outputs/json",
-
         output_dir_csv: str = "outputs/csv",
-
         output_dir_dump: str = "outputs/dump",
         json_params_path: str = None
     ):
         """
-        Parámetros obtenidos desde input_params.json (si no se pasan explícitamente,
-        buscamos input_params.json en el nivel superior a este módulo).
-        
         - relax_file: ruta al archivo LAMMPS dump relajado
-        - radius_training: radio (float) para seleccionar partículas de entrenamiento
+        - radius_training: radio (float) para seleccionar Partículas
         - radius: radio (float) usado en ConstructSurfaceModifier
         - smoothing_level_training: smoothing level para ConstructSurfaceModifier en entrenamiento
         - strees: tupla de 3 floats para aplicar deformación afín (AffineTransformationModifier)
         - save_training: si True, extendemos training_data.json en output_dir
-        - output_dir: carpeta donde crear ids.training.dump y training_data.json
-        - json_params_path: ruta explícita a input_params.json (si None, se calcula automáticamente)
+        - output_dir_*: carpetas de salida para dumps, jsons, csv
+        - json_params_path: ruta explícita a input_params.json
         """
-        self.output_dir_json= "outputs/json"
+        # Rutas de salida
+        self.output_dir_json = output_dir_json
+        self.output_dir_csv = output_dir_csv
+        self.output_dir_dump = output_dir_dump
 
-        self.output_dir_csv= "outputs/csv"
-
-        self.output_dir_dump= "outputs/dump"
         # Si no nos dieron ruta al JSON, la resolvemos dinámicamente
         if json_params_path is None:
             json_params_path = resolve_input_params_path(__file__, "input_params.json")
@@ -61,10 +57,7 @@ class TrainingProcessor:
             raise KeyError("input_params.json debe contener la clave 'CONFIG' como lista no vacía.")
         config = all_params["CONFIG"][0]
 
-        # 2) Extraemos del JSON los parámetros que vienen en CONFIG:
-        #    El script original tomaba:
-        #       relax_file, radius_training, radius, smoothing_level_training, strees, save_training
-        #    de CONFIG. Aquí validamos su existencia.
+        # 2) Extraemos de CONFIG los parámetros necesarios
         try:
             self.relax_file = config["relax"]
         except KeyError:
@@ -85,12 +78,15 @@ class TrainingProcessor:
         except KeyError:
             raise KeyError("Falta la clave 'smoothing_level_training' en CONFIG de input_params.json")
 
-        # `strees` y `save_training` también podrían venir de CONFIG
+        # 'strees' y 'save_training' opcionales
         self.strees = tuple(config.get("strees", strees))
         self.save_training = config.get("save_training", save_training)
 
-       
-        # 4) Definimos rutas internas para dumps y JSON de resultados
+        # 3) Rutas internas para outputs
+        os.makedirs(self.output_dir_dump, exist_ok=True)
+        os.makedirs(self.output_dir_json, exist_ok=True)
+        os.makedirs(self.output_dir_csv, exist_ok=True)
+
         self.ids_dump_file = os.path.join(self.output_dir_dump, "ids.training.dump")
         self.training_results_file = os.path.join(self.output_dir_json, "training_data.json")
 
@@ -129,17 +125,15 @@ class TrainingProcessor:
     def export_training_dump(self):
         """
         Genera un dump llamado 'ids.training.dump' con todas las partículas
-        cuya distancia al centro sea <= radius_training. (Las partículas cercanas
-        se eliminan, y luego se exportan las restantes).
+        cuya distancia al centro sea <= radius_training.
         """
         centro = TrainingProcessor.obtener_centro(self.relax_file)
 
         pipeline = import_file(self.relax_file)
-        # Condición: (x - cx)^2 + (y - cy)^2 + (z - cz)^2 <= radius_training^2
         cond = (
             f"(Position.X - {centro[0]})*(Position.X - {centro[0]}) + "
             f"(Position.Y - {centro[1]})*(Position.Y - {centro[1]}) + "
-            f"(Position.Z - {centro[2]})*(Position.Z - {centro[2]}) <= {self.radius_training *self.radius_training }"
+            f"(Position.Z - {centro[2]})*(Position.Z - {centro[2]}) <= {self.radius_training**2}"
         )
         pipeline.modifiers.append(ExpressionSelectionModifier(expression=cond))
         pipeline.modifiers.append(InvertSelectionModifier())
@@ -162,37 +156,72 @@ class TrainingProcessor:
             print("Error en export_training_dump:", e)
 
 
-    def extract_particle_ids(self) -> list:
+    def _read_ids_and_positions(self) -> Tuple[list, np.ndarray]:
         """
-        Carga el dump 'ids.training.dump' generado y retorna la lista de IDs de las partículas.
+        Carga el dump 'ids.training.dump' y devuelve dos cosas:
+          - lista de Particle Identifier (int)
+          - array de posiciones Nx3 (x,y,z) alineadas en el mismo orden
         """
         pipeline = import_file(self.ids_dump_file)
         data = pipeline.compute()
-        particle_ids = data.particles["Particle Identifier"]
-        return particle_ids[:].tolist()
+
+        particle_ids = data.particles["Particle Identifier"][:].tolist()
+        positions = data.particles.positions
+        return particle_ids, positions
+
+
+    @staticmethod
+    def _order_ids_by_proximity(ids_list: list, positions: np.ndarray) -> list:
+        """
+        Recibe:
+          - ids_list: [id1, id2, ..., idN]
+          - positions: array Nx3 con las coordenadas correspondientes en el mismo orden
+
+        Devuelve un nuevo listado de IDs ordenado de forma que cada ID
+        sucesivo esté cerca espacialmente del anterior (algoritmo greedy:
+        partimos del punto más cercano al centro, luego siempre elegimos
+        el vecino más cercano que aún no esté en la lista ordenada).
+        """
+        N = len(ids_list)
+        if N == 0:
+            return []
+
+        # 1) Calcular el centroide del conjunto de puntos
+        centroid = np.mean(positions, axis=0)
+        # 2) Encontrar qué punto (índice) está más cerca del centroide
+        dists_to_centroid = np.linalg.norm(positions - centroid, axis=1)
+        start_idx = int(np.argmin(dists_to_centroid))
+
+        ordered_ids = [ids_list[start_idx]]
+        ordered_positions = [positions[start_idx]]
+        visited = set([start_idx])
+
+        current_idx = start_idx
+        for _ in range(N - 1):
+            # Tomar las distancias del punto actual a todos los no visitados
+            mask = np.array([i not in visited for i in range(N)])
+            if not mask.any():
+                break
+            candidates_idx = np.nonzero(mask)[0]
+            # Calcular distancias desde current_idx a cada candidato
+            dists = np.linalg.norm(positions[candidates_idx] - positions[current_idx], axis=1)
+            nearest_relative_idx = int(np.argmin(dists))
+            next_idx = candidates_idx[nearest_relative_idx]
+
+            ordered_ids.append(ids_list[next_idx])
+            ordered_positions.append(positions[next_idx])
+            visited.add(next_idx)
+            current_idx = next_idx
+
+        return ordered_ids
 
 
     @staticmethod
     def crear_condicion_ids(ids_eliminar: list) -> str:
         """
-        A partir de una lista de IDs de partículas, construye una expresión LAMMPS
-        tipo "ParticleIdentifier==id1 || ParticleIdentifier==id2 || ...".
+        Concatena: "ParticleIdentifier==id1 || ParticleIdentifier==id2 || ...".
         """
         return " || ".join([f"ParticleIdentifier=={pid}" for pid in ids_eliminar])
-
-
-    def compute_max_distance(self, data) -> float:
-        posiciones = data.particles.positions
-        centro_masa = np.mean(posiciones, axis=0)
-        distancias = np.linalg.norm(posiciones - centro_masa, axis=1)
-        return np.max(distancias)
-
-
-    def compute_min_distance(self, data) -> float:
-        posiciones = data.particles.positions
-        centro_masa = np.mean(posiciones, axis=0)
-        distancias = np.linalg.norm(posiciones - centro_masa, axis=1)
-        return np.min(distancias)
 
 
     def compute_mean_distance(self, data) -> float:
@@ -204,38 +233,28 @@ class TrainingProcessor:
 
     def run_training(self):
         """
-        Ciclo principal de entrenamiento:
-        1) export_training_dump()  → genera ids.training.dump
-        2) extrae lista de IDs
-        3) Para cada k en [1..len(ids)]:
-             - elimina las k primeras partículas
-             - construye SurfaceMesh (ConstructSurfaceModifier)
-             - obtiene area y filled_volume
-             - luego inverte selección, computa distancia promedio y cuenta vecinos
-             - guarda esos valores en listas
-        4) Construye JSON con toda la data:
-            {
-              "surface_area": [...],
-              "filled_volume": [...],
-              "vacancys": [...],
-              "cluster_size": [...],
-              "mean_distance": [...]
-            }
-           → lo guarda en `training_data.json` (extendiendo si ya existe).
-        5) También escribe ‘training_small.json’ (primeros 7 puntos),
-           'key_single_vacancy.json' (primer punto) y
-           'key_double_vacancy.json' (segundo punto).
+        1) Generar ids.training.dump con export_training_dump()
+        2) Cargar IDs y posiciones de ese dump
+        3) Ordenar esa lista de IDs por proximidad (cercanía espacial)
+        4) Para k = 1..len(ids):
+             - eliminar las primeras k IDs de la lista ordenada
+             - computar área y volumen con ConstructSurfaceModifier
+             - invertir selección, calcular distancia promedio y cluster_size
+             - acumular resultados
+        5) Guardar JSONs de training_data, training_small, key_single_vacancy y key_double_vacancy
         """
 
         # 1) Generar dump de IDs
         self.export_training_dump()
 
-        # 2) Extraer lista de IDs
-        particle_ids_list = self.extract_particle_ids()
+        # 2) Cargar lista de IDs y posiciones
+        particle_ids_list, positions = self._read_ids_and_positions()
 
-        # 3) Crear un pipeline base a partir del archivo relajado
+        # 3) Reordenar los IDs según proximidad
+        ordered_ids = TrainingProcessor._order_ids_by_proximity(particle_ids_list, positions)
+
+        # 4) Creamos un pipeline base desde el archivo relajado
         pipeline_2 = import_file(self.relax_file)
-        # Aplicar deformación afín si es necesario
         pipeline_2.modifiers.append(AffineTransformationModifier(
             operate_on={'particles', 'cell'},
             transformation=[
@@ -250,28 +269,42 @@ class TrainingProcessor:
         vacancys        = []
         vecinos         = []
         filled_volumes  = []
-        min_distancias  = []
         mean_distancias = []
-
-        # 4) Ciclo sobre cada número de vacancias (1, 2, 3, …)
-        for idx in range(len(particle_ids_list)):
-            ids_a_eliminar = particle_ids_list[: idx + 1]
+        i=0
+        # 4.1) Recorremos cada “vacancia” de 1 hasta N, eliminando las k primeras partículas
+        for idx in range(len(ordered_ids)):
+            i += 1
+            # Toma las IDs de 0..idx (inclusive) en la lista reordenada
+            ids_a_eliminar = ordered_ids[: idx + 1]
             cond_f = TrainingProcessor.crear_condicion_ids(ids_a_eliminar)
 
-            # 4.1) Eliminar las primeras idx+1 partículas
+            # 4.2) Eliminar las primeras idx+1 partículas
             pipeline_2.modifiers.append(ExpressionSelectionModifier(expression=cond_f))
             pipeline_2.modifiers.append(DeleteSelectedModifier())
 
-            # 4.2) Construir SurfaceMesh en lo que queda
+            # 4.3) Construir SurfaceMesh en lo que queda
             pipeline_2.modifiers.append(ConstructSurfaceModifier(
                 radius=self.radius,
                 smoothing_level=self.smoothing_level_training,
                 identify_regions=True,
                 select_surface_particles=True
             ))
-
             data_2 = pipeline_2.compute()
-
+            try:
+                export_file(
+                    pipeline_2,
+                    f"outputs/dump/{i}_training.dump",
+                    "lammps/dump",
+                    columns=[
+                        "Particle Identifier",
+                        "Particle Type",
+                        "Position.X",
+                        "Position.Y",
+                        "Position.Z"
+                    ]
+                )
+            except Exception as e:
+                print("Error en export_training_dump:", e)
             # Área y volumen
             sm_elip  = data_2.attributes.get('ConstructSurfaceMesh.surface_area', 0)
             filled_v = data_2.attributes.get('ConstructSurfaceMesh.void_volume',  0)
@@ -280,24 +313,34 @@ class TrainingProcessor:
             filled_volumes.append(filled_v)
             vacancys.append(idx + 1)
 
-            # 4.3) Ahora invertimos la selección para computar distancias y vecinos
+            # 4.4) Invertir selección y calcular distancia promedio y cluster_size
             pipeline_2.modifiers.append(InvertSelectionModifier())
             pipeline_2.modifiers.append(DeleteSelectedModifier())
+            try:
+                export_file(
+                    pipeline_2,
+                    f"outputs/dump/vacancy_{i}_training.dump",
+                    "lammps/dump",
+                    columns=[
+                        "Particle Identifier",
+                        "Particle Type",
+                        "Position.X",
+                        "Position.Y",
+                        "Position.Z"
+                    ]
+                )
+            except Exception as e:
+                print("Error en export_training_dump:", e)
             data_3 = pipeline_2.compute()
 
-            # Diferentes distancias (min, mean, max). Puedes descomentar si las necesitas
-            # min_d = self.compute_min_distance(data_3)
             mean_d = self.compute_mean_distance(data_3)
-            # max_d = self.compute_max_distance(data_3)
-
-            # Guardamos únicamente mean_distance y cluster_size (número de partículas)
             mean_distancias.append(mean_d)
             vecinos.append(data_3.particles.count)
 
-            # 4.4) Limpiamos todos los modificadores para volver al “estado limpio”
+            # 4.5) Limpiar todos los modificadores para la próxima iteración
             pipeline_2.modifiers.clear()
 
-        # 5) Preparamos el diccionario a exportar
+        # 5) Preparar el diccionario a exportar
         datos_exportar = {
             "surface_area":    sm_mesh_training,
             "filled_volume":   filled_volumes,
@@ -306,10 +349,11 @@ class TrainingProcessor:
             "mean_distance":   mean_distancias
         }
 
-        # 6) Si ya existe un training_data.json y save_training=True, extendemos
-        default_keys = { "surface_area": [], "filled_volume": [], 
-                         "vacancys": [], "cluster_size": [], "mean_distance": [] }
-
+        # 6) Verificar si existe training_data.json para extender
+        default_keys = {
+            "surface_area": [], "filled_volume": [],
+            "vacancys": [], "cluster_size": [], "mean_distance": []
+        }
         if os.path.exists(self.training_results_file):
             with open(self.training_results_file, "r", encoding="utf-8") as f:
                 datos_previos = json.load(f)
@@ -320,11 +364,8 @@ class TrainingProcessor:
             datos_previos = default_keys
 
         if self.save_training:
-            datos_previos["surface_area"].extend(   sm_mesh_training)
-            datos_previos["filled_volume"].extend(   filled_volumes)
-            datos_previos["vacancys"].extend(        vacancys)
-            datos_previos["cluster_size"].extend(    vecinos)
-            datos_previos["mean_distance"].extend(   mean_distancias)
+            for key in datos_exportar:
+                datos_previos[key].extend(datos_exportar[key])
             with open(self.training_results_file, "w", encoding="utf-8") as f:
                 json.dump(datos_previos, f, indent=4)
 
@@ -336,22 +377,16 @@ class TrainingProcessor:
             "cluster_size":    vecinos[:7],
             "mean_distance":   mean_distancias[:7]
         }
-        primeros_small = os.path.join(
-            os.path.dirname(self.training_results_file),
-            "training_small.json"
-        )
+        primeros_small = os.path.join(self.output_dir_json, "training_small.json")
         with open(primeros_small, "w", encoding="utf-8") as f:
             json.dump(primeros_datos, f, indent=4)
 
-        # 8) Escribir "training_data.json" (sobrescribe con toda la data)
-        all_data_json = os.path.join(
-            os.path.dirname(self.training_results_file),
-            "training_data.json"
-        )
+        # 8) Sobrescribir "training_data.json" con toda la data actual
+        all_data_json = os.path.join(self.output_dir_json, "training_data.json")
         with open(all_data_json, "w", encoding="utf-8") as f:
             json.dump(datos_exportar, f, indent=4)
 
-        # 9) "key_single_vacancy.json" con solo el primer punto
+        # 9) "key_single_vacancy.json" con el primer punto
         primeros_datos_single = {
             "surface_area":  sm_mesh_training[:1],
             "filled_volume": filled_volumes[:1],
@@ -359,11 +394,11 @@ class TrainingProcessor:
             "cluster_size":  vecinos[:1],
             "mean_distance": mean_distancias[:1]
         }
-        single_file = os.path.join(os.path.dirname(self.training_results_file), "key_single_vacancy.json")
+        single_file = os.path.join(self.output_dir_json, "key_single_vacancy.json")
         with open(single_file, "w", encoding="utf-8") as f:
             json.dump(primeros_datos_single, f, indent=4)
 
-        # 10) "key_double_vacancy.json" con solo el segundo punto
+        # 10) "key_double_vacancy.json" con el segundo punto
         primeros_datos_double = {
             "surface_area":  sm_mesh_training[1:2],
             "filled_volume": filled_volumes[1:2],
@@ -371,7 +406,7 @@ class TrainingProcessor:
             "cluster_size":  vecinos[1:2],
             "mean_distance": mean_distancias[1:2]
         }
-        double_file = os.path.join(os.path.dirname(self.training_results_file), "key_double_vacancy.json")
+        double_file = os.path.join(self.output_dir_json, "key_double_vacancy.json")
         with open(double_file, "w", encoding="utf-8") as f:
             json.dump(primeros_datos_double, f, indent=4)
 

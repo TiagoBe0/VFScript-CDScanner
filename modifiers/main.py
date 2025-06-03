@@ -101,7 +101,7 @@ if __name__ == "__main__":
     export_list.process_files()
 
     # 7. Calcular superficies de dump (SurfaceProcessor)
-    surf_proc = SurfaceProcessor()
+    surf_proc = SurfaceProcessor(configuracion)
     surf_proc.process_all_files()
     surf_proc.export_results()
 

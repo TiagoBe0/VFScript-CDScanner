@@ -4,7 +4,7 @@
             "activate_generate_relax": true,
             "generate_relax": [
                 "fcc",
-                "3.5",
+                "3.4",
                 5,5,5
             ],
             "relax": "inputs/dump/relax_structure.dump",
