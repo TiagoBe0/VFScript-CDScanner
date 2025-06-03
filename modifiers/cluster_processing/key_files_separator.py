@@ -74,7 +74,7 @@ class KeyFilesSeparator:
 
     def separar_archivos(self):
         for i in range(1, self.num_clusters + 1):
-            ruta_archivo = f"outputs.dump/key_area_{i}.dump"
+            ruta_archivo = f"outputs/dump/key_area_{i}.dump"
             coords = self.extraer_coordenadas(ruta_archivo)
             centroide = self.calcular_centro_de_masa(coords)
             distancias, dispersion = self.calcular_dispersion(coords, centroide)
@@ -93,4 +93,4 @@ class KeyFilesSeparator:
 
     def run(self):
         self.separar_archivos()
-        self.exportar_listas("outputs.json/key_archivos.json")
+        self.exportar_listas("outputs/json/key_archivos.json")

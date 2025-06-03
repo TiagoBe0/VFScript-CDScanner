@@ -9,8 +9,8 @@ class SurfaceProcessor:
     def __init__(
         self,
         json_params_path: str = "modifiers/input_params.json",
-        key_archivos_path: str = "outputs.json/key_archivos.json",
-        threshold_file: str = "outputs.vfinder/key_single_vacancy.json"
+        key_archivos_path: str = "outputs/json/key_archivos.json",
+        threshold_file: str = "outputs/json/key_single_vacancy.json"
     ):
         """
         Ahora los parámetros de entrada (radius, smoothing_level, etc.) se leen
@@ -169,7 +169,7 @@ class SurfaceProcessor:
         return self.results_matrix
 
 
-    def export_results(self, output_csv: str = "outputs.json/resultados_procesados.csv"):
+    def export_results(self, output_csv: str = "outputs/csv/resultados_procesados.csv"):
         """
         Guarda self.results_matrix en un CSV. Si aún no se calculó, invoca a process_all_files().
         """

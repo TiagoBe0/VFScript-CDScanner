@@ -27,10 +27,16 @@ import json
 if __name__ == "__main__":
 #training analysis
 
+    # 0) Configurar directorios
+    
+
+    base = "outputs"
+    for sub in ("csv", "dump", "json"):
+        os.makedirs(os.path.join(base, sub), exist_ok=True)
+
     # 1) Primero: correr el TrainingProcessor para generar training_data.json, key_single_vacancy.json, etc.
     processor = TrainingProcessor()
     processor.run()
-    print("Entrenamiento completado. JSONs generados en 'outputs.vfinder/'.")
 
 
  
@@ -54,11 +60,11 @@ if __name__ == "__main__":
     defect_file = configuracion['defect']
     processor = ClusterProcessor(defect_file)
     processor.run()
-    separator = KeyFilesSeparator(configuracion, os.path.join("outputs.json", "clusters.json"))
+    separator = KeyFilesSeparator(configuracion, os.path.join("outputs/json", "clusters.json"))
     separator.run()
 
     # 3. Procesar dumps críticos (ClusterDumpProcessor)
-    clave_criticos = ClusterDumpProcessor.cargar_lista_archivos_criticos("outputs.json/key_archivos.json")
+    clave_criticos = ClusterDumpProcessor.cargar_lista_archivos_criticos("outputs/json/key_archivos.json")
     for archivo in clave_criticos:
         try:
             dump_proc = ClusterDumpProcessor(archivo, decimals=5)
@@ -69,18 +75,18 @@ if __name__ == "__main__":
             print(f"Error procesando {archivo}: {e}")
 
     # 4. Reprocesar con ClusterProcessorMachine (subdivisión iterativa)
-    lista_criticos = ClusterDumpProcessor.cargar_lista_archivos_criticos("outputs.json/key_archivos.json")
+    lista_criticos = ClusterDumpProcessor.cargar_lista_archivos_criticos("outputs/json/key_archivos.json")
     for archivo in lista_criticos:
         machine_proc = ClusterProcessorMachine(archivo, configuracion['cluster tolerance'], configuracion['iteraciones_clusterig'])
         machine_proc.process_clusters()
         machine_proc.export_updated_file()
 
     # 5. Volver a separar archivos finales vs críticos
-    separator = KeyFilesSeparator(configuracion, os.path.join("outputs.json", "clusters.json"))
+    separator = KeyFilesSeparator(configuracion, os.path.join("outputs/json", "clusters.json"))
     separator.run()
 
     # 6. Generar nuevos dumps por cluster (ExportClusterList)
-    export_list = ExportClusterList("outputs.json/key_archivos.json")
+    export_list = ExportClusterList("outputs/json/key_archivos.json")
     export_list.process_files()
 
     # 7. Calcular superficies de dump (SurfaceProcessor)
@@ -104,7 +110,7 @@ if __name__ == "__main__":
     # 3) Instanciar y probar los distintos predictivos:
     #    a) RandomForest
     rf_predictor = VacancyPredictorRF(
-        json_path="outputs.vfinder/training_data.json",
+        json_path="outputs/json/training_data.json",
         predictor_columns=predictor_cols
     )
     example_input = {col: 1.23 for col in predictor_cols}  # Ejemplo de diccionario de entrada
@@ -113,8 +119,8 @@ if __name__ == "__main__":
 
     #    b) XGBoost
     xgb_predictor = XGBoostVacancyPredictor(
-        training_data_path="outputs.vfinder/training_data.json",
-        model_path="outputs.json/xgboost_model.json",
+        training_data_path="outputs/json/training_data.json",
+        model_path="outputs/json/xgboost_model.json",
         predictor_columns=predictor_cols
     )
     # Para XGBoost, debes pasar una lista 2D de features:

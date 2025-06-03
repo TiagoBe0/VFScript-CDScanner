@@ -148,8 +148,8 @@ class ClusterProcessor:
         self.nombre_archivo = self.config["defect"]
         # … resto de tu lógica …
         # 3) Crear carpetas de salida
-        self.outputs_dump = "outputs.dump"
-        self.outputs_json = "outputs.json"
+        self.outputs_dump = "outputs/dump"
+        self.outputs_json = "outputs/json"
         os.makedirs(self.outputs_dump, exist_ok=True)
         os.makedirs(self.outputs_json, exist_ok=True)
 
@@ -307,7 +307,7 @@ class ClusterProcessorMachine:
         self.max_iterations = config.get("iteraciones_clusterig", 10)
 
         # min_atoms: si no viene en el JSON, se resuelve desde el JSON de key_single_vacancy
-        self.min_atoms = UtilidadesClustering.cargar_min_atoms("outputs.vfinder/key_single_vacancy.json")
+        self.min_atoms = UtilidadesClustering.cargar_min_atoms("outputs/json/key_single_vacancy.json")
 
         # 2) Cargar datos del dump: matriz total y encabezado
         self.matriz_total = UtilidadesClustering.extraer_datos_completos(file_path)

@@ -25,7 +25,11 @@ class TrainingProcessor:
         strees: tuple = (1.0, 1.0, 1.0),
         save_training: bool = True,
         relax_file: str = None,
-        output_dir: str = "outputs.vfinder",
+        output_dir_json: str = "outputs/json",
+
+        output_dir_csv: str = "outputs/csv",
+
+        output_dir_dump: str = "outputs/dump",
         json_params_path: str = None
     ):
         """
@@ -41,7 +45,11 @@ class TrainingProcessor:
         - output_dir: carpeta donde crear ids.training.dump y training_data.json
         - json_params_path: ruta explícita a input_params.json (si None, se calcula automáticamente)
         """
+        self.output_dir_json= "outputs/json"
 
+        self.output_dir_csv= "outputs/csv"
+
+        self.output_dir_dump= "outputs/dump"
         # Si no nos dieron ruta al JSON, la resolvemos dinámicamente
         if json_params_path is None:
             json_params_path = resolve_input_params_path(__file__, "input_params.json")
@@ -81,14 +89,10 @@ class TrainingProcessor:
         self.strees = tuple(config.get("strees", strees))
         self.save_training = config.get("save_training", save_training)
 
-        # 3) Configuramos output_dir (si no existe, lo creamos)
-        self.output_dir = output_dir
-        if not os.path.exists(self.output_dir):
-            os.makedirs(self.output_dir, exist_ok=True)
-
+       
         # 4) Definimos rutas internas para dumps y JSON de resultados
-        self.ids_dump_file = os.path.join(self.output_dir, "ids.training.dump")
-        self.training_results_file = os.path.join(self.output_dir, "training_data.json")
+        self.ids_dump_file = os.path.join(self.output_dir_dump, "ids.training.dump")
+        self.training_results_file = os.path.join(self.output_dir_json, "training_data.json")
 
 
     @staticmethod
