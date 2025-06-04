@@ -121,7 +121,7 @@ class SurfaceProcessor:
         self.results_matrix = np.array(results, dtype=object)
         return self.results_matrix
 
-    def export_results(self, output_csv: str = "outputs/json/resultados_procesados.csv"):
+    def export_results(self, output_csv: str = "outputs/csv/defect_data.csv"):
         """
         Guarda self.results_matrix en un CSV (creando la carpeta si no existe).
         """
@@ -133,7 +133,7 @@ class SurfaceProcessor:
             output_csv,
             self.results_matrix,
             delimiter=",",
-            fmt="%s",
-            header="archivo,mejor_radio,area,filled_volume,num_atm,mean_distance",
+            fmt="%s",  
+            header="archivo,mejor_radio,surface_area,filled_volume,cluster_size,mean_distance",
             comments=""
         )

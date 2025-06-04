@@ -5,7 +5,7 @@ warnings.filterwarnings('ignore', message='.*OVITO.*PyPI')
 
 import ovito._extensions.pyscript
 # … resto de imports de OVITO …
-
+import pandas as pd
 import os
 from surface_processor.surface_processor import SurfaceProcessor
 from surface_processor.cluster_dump_processor import ClusterDumpProcessor
@@ -105,38 +105,53 @@ if __name__ == "__main__":
     surf_proc.process_all_files()
     surf_proc.export_results()
 
-  
 
-
-   # En lugar de resolve_input_params_path(...) simplemente:
+    # ———> BLOQUE DE PREDICCIÓN EXTRAÍDO DE CSV Y CON LA CLAVE EN EL RAÍZ DEL JSON
     json_params = os.path.join(os.path.dirname(__file__), "input_params.json")
     with open(json_params, "r", encoding="utf-8") as f:
         params = json.load(f)
 
-    # Ahora `params` contiene todo input_params.json  
+    # Ahora obtenemos PREDICTOR_COLUMNS del nivel raíz, no dentro de CONFIG
     predictor_cols = params.get("PREDICTOR_COLUMNS", None)
-    if predictor_cols is None:
-        raise KeyError("input_params.json debe contener 'PREDICTOR_COLUMNS'.")
+    if predictor_cols is None or not isinstance(predictor_cols, list) or len(predictor_cols) == 0:
+        raise KeyError("input_params.json debe contener 'PREDICTOR_COLUMNS' (lista no vacía) en el nivel raíz.")
 
-    # 3) Instanciar y probar los distintos predictivos:
-    #    a) RandomForest
+    # 1) Instanciar los modelos predictivos (ya entrenados)
     rf_predictor = VacancyPredictorRF(
         json_path="outputs/json/training_data.json",
         predictor_columns=predictor_cols
     )
-    example_input = {col: 1.23 for col in predictor_cols}  # Ejemplo de diccionario de entrada
-    vac_pred_rf = rf_predictor.predict_vacancies(**example_input)
-    print("Predicción RF (vacancias):", vac_pred_rf)
-
-    #    b) XGBoost
     xgb_predictor = XGBoostVacancyPredictor(
         training_data_path="outputs/json/training_data.json",
         model_path="outputs/json/xgboost_model.json",
         predictor_columns=predictor_cols
     )
-    # Para XGBoost, debes pasar una lista 2D de features:
-    sample_features = [[example_input[col] for col in predictor_cols]]
-    vac_pred_xgb = xgb_predictor.predict(sample_features)
-    print("Predicción XGBoost (vacancias):", vac_pred_xgb)
 
-   
+    # 2) Leer el CSV con las features (ajusta la ruta según corresponda)
+    csv_path = os.path.join("outputs", "csv", "defect_data.csv")
+    if not os.path.isfile(csv_path):
+        raise FileNotFoundError(f"No se encontró el CSV en: {csv_path}")
+
+    df = pd.read_csv(csv_path)
+
+    # 3) Iterar sobre cada fila del DataFrame y predecir
+    print(f"\********** Predicciones para defecto {defect_file} usando {csv_path} *************")
+    for idx, row in df.iterrows():
+        # Construir el diccionario solo con las columnas que esperan los modelos
+        try:
+            features = { col: row[col] for col in predictor_cols }
+        except KeyError as e:
+            raise KeyError(
+                f"La columna {e} no existe en el CSV. "
+                f"Columnas disponibles: {list(df.columns)}"
+            )
+
+        # RandomForest
+        vac_pred_rf = rf_predictor.predict_vacancies(**features)
+
+        sample_features = [[features[col] for col in predictor_cols]]
+        vac_pred_xgb = xgb_predictor.predict(sample_features)
+
+        print(f"Fila {idx} → features: {features}")
+        print(f"  • Predicción RF (vacancias): {vac_pred_rf}")
+        print(f"  • Predicción XGBoost (vacancias): {vac_pred_xgb}\n")
