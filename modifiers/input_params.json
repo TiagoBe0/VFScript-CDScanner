@@ -1,0 +1,31 @@
+{
+    "CONFIG": [
+        {   "other method":true,
+            "activate_generate_relax": true,
+            "generate_relax": [
+                "bcc",
+                "2.85",
+                10,10,10
+            ],
+            "relax": "inputs/dump/main.0",
+            "defect": [
+
+                "inputs/dump/void_13"
+            ],
+            "radius": 2,
+            "smoothing_level": 0,
+            "smoothing_level_training": 0,
+            "cutoff": 3,
+            "radius_training": 5,
+            "cluster tolerance": 2,
+            "divisions_of_cluster": 6,
+            "iteraciones_clusterig": 4
+        }
+    ],
+    "PREDICTOR_COLUMNS": [
+        "surface_area",
+        "filled_volume",
+        "cluster_size",
+        "mean_distance"
+    ]
+}
