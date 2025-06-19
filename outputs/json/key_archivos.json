@@ -1,0 +1,10 @@
+{
+    "clusters_criticos": [],
+    "clusters_final": [
+        "outputs/dump/key_area_1.dump",
+        "outputs/dump/key_area_2.dump",
+        "outputs/dump/key_area_3.dump",
+        "outputs/dump/key_area_4.dump",
+        "outputs/dump/key_area_5.dump"
+    ]
+}
